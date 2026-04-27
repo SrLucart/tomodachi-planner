@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+ï»¿import { useState, useRef, useEffect, useCallback } from 'react';
 import {
     Save,
     Upload,
@@ -20,7 +20,7 @@ const GRID_W = 118;
 const GRID_H = 78;
 
 const TERRAINS = [
-    { id: 0, name: { en: 'Sea (Water)', pt: 'Mar (Água)' }, color: '#0284c7' },
+    { id: 0, name: { en: 'Sea (Water)', pt: 'Mar (Ãgua)' }, color: '#0284c7' },
     { id: 1, name: { en: 'Sand (Beach)', pt: 'Areia (Praia)' }, color: '#fde047' },
     { id: 2, name: { en: 'Grass', pt: 'Grama' }, color: '#4ade80' },
     { id: 3, name: { en: 'Concrete', pt: 'Cimento' }, color: '#94a3b8' },
@@ -34,12 +34,12 @@ const BUILDINGS = {
     shop: { id: 'shop', name: { en: 'Shop', pt: 'Loja' }, w: 4, h: 4, color: '#ef4444' },
     ferris_wheel: { id: 'ferris_wheel', name: { en: 'Ferris Wheel', pt: 'Roda Gigante' }, w: 9, h: 6, color: '#a855f7' },
     marketplace: { id: 'marketplace', name: { en: 'Marketplace', pt: 'Marketplace' }, w: 3, h: 3, color: '#10b981' },
-    news_tower: { id: 'news_tower', name: { en: 'News Tower', pt: 'Torre de Notícias' }, w: 4, h: 4, color: '#3b82f6' },
+    news_tower: { id: 'news_tower', name: { en: 'News Tower', pt: 'Torre de NotÃ­cias' }, w: 4, h: 4, color: '#3b82f6' },
     restaurant: { id: 'restaurant', name: { en: 'Restaurant', pt: 'Restaurante' }, w: 6, h: 5, color: '#ec4899' },
     custom: { id: 'custom', name: { en: 'Custom Lot', pt: 'Lote Personalizado' }, w: 1, h: 1, color: '#14b8a6' },
 };
 
-// Dicionário de Traduções
+// DicionÃ¡rio de TraduÃ§Ãµes
 const TRANSLATIONS = {
     en: {
         terrainTab: 'Terrain', buildingTab: 'Buildings', terrainPaint: 'Terrain Paint', brushSize: 'Brush Size',
@@ -52,13 +52,13 @@ const TRANSLATIONS = {
         undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y or Ctrl+Shift+Z)'
     },
     pt: {
-        terrainTab: 'Terreno', buildingTab: 'Edifícios', terrainPaint: 'Pintura de Solo', brushSize: 'Tamanho do Pincel',
+        terrainTab: 'Terreno', buildingTab: 'EdifÃ­cios', terrainPaint: 'Pintura de Solo', brushSize: 'Tamanho do Pincel',
         blueprints: 'Projetos', normal: 'Normal', rotated: 'Girado', tiles: 'tiles', tile: 'tile',
-        shortcutRot: 'Atalho: Espaço ou R', tipRot: 'Dica: Use a tecla Espaço para girar rapidamente.',
-        width: 'Largura', depth: 'Profund.', actions: 'Ações', cursor: 'Cursor', shortcutEsc: 'Atalho: Esc',
+        shortcutRot: 'Atalho: EspaÃ§o ou R', tipRot: 'Dica: Use a tecla EspaÃ§o para girar rapidamente.',
+        width: 'Largura', depth: 'Profund.', actions: 'AÃ§Ãµes', cursor: 'Cursor', shortcutEsc: 'Atalho: Esc',
         eraser: 'Borracha', clear: 'Limpar', save: 'Salvar', open: 'Abrir', zoomIn: 'Aproximar', zoomOut: 'Afastar',
-        clearTitle: 'Limpar Ilha?', clearDesc: 'Tem certeza que deseja apagar todo o terreno e os edifícios? Esta ação não pode ser desfeita.',
-        cancel: 'Cancelar', confirmClear: 'Sim, limpar tudo', invalidFile: 'Arquivo de projeto inválido.',
+        clearTitle: 'Limpar Ilha?', clearDesc: 'Tem certeza que deseja apagar todo o terreno e os edifÃ­cios? Esta aÃ§Ã£o nÃ£o pode ser desfeita.',
+        cancel: 'Cancelar', confirmClear: 'Sim, limpar tudo', invalidFile: 'Arquivo de projeto invÃ¡lido.',
         undo: 'Desfazer (Ctrl+Z)', redo: 'Refazer (Ctrl+Y ou Ctrl+Shift+Z)'
     }
 };
@@ -84,7 +84,7 @@ export default function App() {
     const [canUndo, setCanUndo] = useState(false);
     const [canRedo, setCanRedo] = useState(false);
 
-    // Estado para armazenar o edifício sendo movido
+    // Estado para armazenar o edifÃ­cio sendo movido
     const [movingState, setMovingState] = useState(null);
 
     // Refs for Data & Canvas 
@@ -97,6 +97,35 @@ export default function App() {
     const hoverCanvasRef = useRef(null);
     const isMouseDown = useRef(false);
     const mousePos = useRef({ x: -1, y: -1 });
+
+    // --------------------------------------------------------
+    // Logic Helpers (Movidos para cima e como function para evitar erro de hoisting)
+    // --------------------------------------------------------
+    function isSpaceFree(x, y, w, h) {
+        if (x + w > GRID_W || y + h > GRID_H) return false;
+        return !buildingsData.current.some(b =>
+            x < b.x + b.w && x + w > b.x &&
+            y < b.y + b.h && y + h > b.y
+        );
+    }
+
+    function removeBuildingAt(x, y) {
+        const initialLen = buildingsData.current.length;
+        buildingsData.current = buildingsData.current.filter(b =>
+            !(x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h)
+        );
+        return buildingsData.current.length !== initialLen;
+    }
+
+    // FunÃ§Ã£o unificada para trocar a ferramenta de forma segura
+    const handleSetTool = (newTool) => {
+        if (newTool !== 'pointer' && movingState) {
+            buildingsData.current.push(movingState.original);
+            setMovingState(null);
+            drawBase();
+        }
+        setTool(newTool);
+    };
 
     // --------------------------------------------------------
     // Core Drawing Logic
@@ -183,7 +212,7 @@ export default function App() {
         const { x, y } = mousePos.current;
         if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return;
 
-        // Desenha o edifício se estiver movendo
+        // Desenha o edifÃ­cio se estiver movendo
         if (movingState) {
             const { w, h, type } = movingState.current;
             const bDef = BUILDINGS[type];
@@ -231,7 +260,7 @@ export default function App() {
             let w = isRotated ? bDef.h : bDef.w;
             let h = isRotated ? bDef.w : bDef.h;
 
-            // Resolução de dimensões para lote customizado
+            // ResoluÃ§Ã£o de dimensÃµes para lote customizado
             if (selectedBuilding === 'custom') {
                 w = isRotated ? customH : customW;
                 h = isRotated ? customW : customH;
@@ -263,13 +292,14 @@ export default function App() {
             ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
             ctx.fillRect(x * zoom, y * zoom, zoom, zoom);
         }
-    }, [activeTab, tool, selectedTerrain, selectedBuilding, brushSize, zoom, isRotated, movingState, customW, customH, lang]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, tool, selectedTerrain, selectedBuilding, brushSize, zoom, isRotated, movingState, customW, customH]);
 
     useEffect(() => {
         drawBase();
     }, [drawBase]);
 
-    // Força o desenho do hover quando os estados visuais atualizarem
+    // ForÃ§a o desenho do hover quando os estados visuais atualizarem
     useEffect(() => {
         drawHover();
     }, [drawHover]);
@@ -283,7 +313,7 @@ export default function App() {
     // --------------------------------------------------------
     const saveState = useCallback((snapshot) => {
         history.current.push(snapshot);
-        if (history.current.length > 50) history.current.shift(); // Limite de 50 ações
+        if (history.current.length > 50) history.current.shift(); // Limite de 50 aÃ§Ãµes
         redoStack.current = [];
         setCanUndo(true);
         setCanRedo(false);
@@ -331,25 +361,6 @@ export default function App() {
         drawBase();
         drawHover();
     }, [movingState, drawBase, drawHover]);
-
-    // --------------------------------------------------------
-    // Logic Helpers
-    // --------------------------------------------------------
-    const isSpaceFree = (x, y, w, h) => {
-        if (x + w > GRID_W || y + h > GRID_H) return false;
-        return !buildingsData.current.some(b =>
-            x < b.x + b.w && x + w > b.x &&
-            y < b.y + b.h && y + h > b.y
-        );
-    };
-
-    const removeBuildingAt = (x, y) => {
-        const initialLen = buildingsData.current.length;
-        buildingsData.current = buildingsData.current.filter(b =>
-            !(x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h)
-        );
-        return buildingsData.current.length !== initialLen;
-    };
 
     const applyAction = (gx, gy) => {
         if (gx < 0 || gx >= GRID_W || gy < 0 || gy >= GRID_H) return;
@@ -533,7 +544,7 @@ export default function App() {
                     setMovingState(null);
                     drawBase();
                 } else {
-                    setTool('pointer');
+                    handleSetTool('pointer');
                 }
             } else if (e.key.toLowerCase() === 'r' || e.code === 'Space') {
                 if (e.code === 'Space') e.preventDefault();
@@ -555,15 +566,8 @@ export default function App() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [drawBase, movingState, isRotated, performUndo, performRedo]);
-
-    useEffect(() => {
-        if (tool !== 'pointer' && movingState) {
-            buildingsData.current.push(movingState.original);
-            setMovingState(null);
-            drawBase();
-        }
-    }, [tool, movingState, drawBase]);
 
     // --------------------------------------------------------
     // Actions
@@ -615,7 +619,8 @@ export default function App() {
                     setMovingState(null);
                     drawBase();
                 }
-            } catch (error) {
+            } catch (err) {
+                console.error(err);
                 alert(t.invalidFile);
             }
         };
@@ -654,13 +659,13 @@ export default function App() {
                 <div className="flex p-2 gap-2 border-b border-slate-700 bg-slate-800/50">
                     <button
                         className={`flex-1 py-2 text-sm font-medium rounded transition-colors flex justify-center items-center gap-2 ${activeTab === 'terrain' ? 'bg-sky-600 text-white' : 'hover:bg-slate-700 text-slate-400'}`}
-                        onClick={() => { setActiveTab('terrain'); setTool('paint'); }}
+                        onClick={() => { setActiveTab('terrain'); handleSetTool('paint'); }}
                     >
                         <Brush size={16} /> {t.terrainTab}
                     </button>
                     <button
                         className={`flex-1 py-2 text-sm font-medium rounded transition-colors flex justify-center items-center gap-2 ${activeTab === 'building' ? 'bg-sky-600 text-white' : 'hover:bg-slate-700 text-slate-400'}`}
-                        onClick={() => { setActiveTab('building'); setTool('paint'); }}
+                        onClick={() => { setActiveTab('building'); handleSetTool('paint'); }}
                     >
                         <Building size={16} /> {t.buildingTab}
                     </button>
@@ -678,7 +683,7 @@ export default function App() {
                                     <button
                                         key={terrainItem.id}
                                         className={`flex items-center gap-2 p-2 rounded border transition-all ${selectedTerrain === terrainItem.id && tool === 'paint' ? 'border-sky-500 bg-slate-700' : 'border-slate-700 hover:border-slate-500'}`}
-                                        onClick={() => { setSelectedTerrain(terrainItem.id); setTool('paint'); }}
+                                        onClick={() => { setSelectedTerrain(terrainItem.id); handleSetTool('paint'); }}
                                     >
                                         <div className="w-5 h-5 rounded shadow-sm border border-slate-900" style={{ backgroundColor: terrainItem.color }} />
                                         <span className="text-sm truncate">{terrainItem.name[lang]}</span>
@@ -725,7 +730,7 @@ export default function App() {
                                         <div key={b.id} className="flex flex-col">
                                             <button
                                                 className={`flex items-center justify-between p-2 rounded border transition-all ${selectedBuilding === b.id && tool === 'paint' ? 'border-sky-500 bg-slate-700' : 'border-slate-700 hover:border-slate-500'}`}
-                                                onClick={() => { setSelectedBuilding(b.id); setTool('paint'); }}
+                                                onClick={() => { setSelectedBuilding(b.id); handleSetTool('paint'); }}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-4 h-4 rounded-sm border border-slate-900 shrink-0" style={{ backgroundColor: b.color }} />
@@ -777,7 +782,7 @@ export default function App() {
                         <div className="flex gap-2">
                             <button
                                 className={`flex-1 flex flex-col items-center justify-center p-2 rounded border transition-all ${tool === 'pointer' ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-slate-700 hover:border-slate-500'}`}
-                                onClick={() => setTool('pointer')}
+                                onClick={() => handleSetTool('pointer')}
                                 title={t.shortcutEsc}
                             >
                                 <MousePointer2 size={20} className="mb-1" />
@@ -786,7 +791,7 @@ export default function App() {
 
                             <button
                                 className={`flex-1 flex flex-col items-center justify-center p-2 rounded border transition-all ${tool === 'erase' ? 'border-red-500 bg-red-500/10 text-red-400' : 'border-slate-700 hover:border-slate-500'}`}
-                                onClick={() => setTool('erase')}
+                                onClick={() => handleSetTool('erase')}
                             >
                                 <Eraser size={20} className="mb-1" />
                                 <span className="text-xs">{t.eraser}</span>
