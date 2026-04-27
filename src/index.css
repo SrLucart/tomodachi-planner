@@ -1,6 +1,5 @@
-@import "tailwindcss";
+ï»¿@import "tailwindcss";
 
-/* Opcional: mantém o fundo escuro do seu App para não piscar branco ao carregar */
 body {
     background-color: #0f172a;
 }
